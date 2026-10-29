@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "factor-attribution"
+version = "0.1.0"
+description = "Valutazione di fondi e gestori: modelli fattoriali Fama-French e Carhart, test talento o fortuna, style analysis di Sharpe, attribuzione di Brinson"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Francesco Torraco" }]
+keywords = ["fama-french", "factor model", "performance attribution", "brinson", "style analysis", "alpha", "fund selection"]
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.11",
+    "pandas>=2.2",
+    "statsmodels>=0.14",
+    "plotly>=5.20",
+    "jinja2>=3.1",
+]
+
+[project.optional-dependencies]
+png = ["kaleido>=1.0"]
+dev = ["pytest>=7", "ruff>=0.4"]
+
+[project.scripts]
+factor-attribution = "factor_attribution.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+factor_attribution = ["templates/*.j2"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["B905"]

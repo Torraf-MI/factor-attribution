@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analisi del fondo – {{ fondo }}</title>
+{% if plotly_inline %}<script>{{ plotly_inline | safe }}</script>{% else %}<script src="{{ plotly_cdn }}"></script>{% endif %}
+<style>
+  :root { --blu: #1f4e79; --grigio: #595959; --chiaro: #f2f5f9; }
+  body { font-family: "Segoe UI", Helvetica, Arial, sans-serif; color: #222; max-width: 980px;
+         margin: 0 auto; padding: 32px 16px 60px; line-height: 1.5; background: #fff; }
+  header { border-bottom: 3px solid var(--blu); padding-bottom: 12px; margin-bottom: 24px; }
+  h1 { color: var(--blu); margin: 0 0 4px; font-size: 1.7rem; }
+  h2 { color: var(--blu); font-size: 1.2rem; margin-top: 36px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+  h3 { font-size: 1rem; margin: 22px 0 6px; }
+  .sub { color: var(--grigio); font-size: .95rem; }
+  .kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 16px 0; }
+  .kpi div { background: var(--chiaro); border-radius: 8px; padding: 12px 14px; }
+  .kpi b { display: block; font-size: 1.45rem; color: var(--blu); }
+  .kpi span { font-size: .8rem; color: var(--grigio); text-transform: uppercase; letter-spacing: .03em; }
+  .esito { border-left: 5px solid; padding: 12px 16px; border-radius: 4px; margin: 16px 0; }
+  .esito.ok { border-color: #0ca30c; background: #eef8ee; }
+  .esito.attenzione { border-color: #fab219; background: #fff8e8; }
+  .esito.ko { border-color: #d03b3b; background: #fcefef; }
+  .esito b::before { margin-right: 6px; }
+  .esito.ok b::before { content: "✓"; color: #0ca30c; }
+  .esito.attenzione b::before { content: "!"; color: #b07800; }
+  .esito.ko b::before { content: "✕"; color: #d03b3b; }
+  .due { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; margin: 10px 0; }
+  th, td { padding: 7px 10px; text-align: right; border-bottom: 1px solid #e5e5e5; }
+  th:first-child, td:first-child { text-align: left; }
+  th { background: var(--blu); color: #fff; font-weight: 600; }
+  tr:nth-child(even) td { background: #fafbfc; }
+  tr.forte td { font-weight: 600; }
+  td.neg { color: #c0392b; } td.pos { color: #1e7d32; }
+  .scroll { overflow-x: auto; }
+  .scroll table { white-space: nowrap; }
+  .grafico { margin: 14px 0; overflow: hidden; }
+  .note { font-size: .8rem; color: var(--grigio); background: var(--chiaro); padding: 12px 14px; border-radius: 6px; }
+  ul { padding-left: 20px; }
+  @media print { .grafico { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>{{ fondo }}</h1>
+  <div class="sub">Analisi fattoriale, di stile e attribuzione di performance · preparata per <b>{{ client }}</b> ·
+    {{ today }} · dati mensili dal {{ periodo }}{% if benchmark %} · benchmark: {{ benchmark }}{% endif %}</div>
+</header>
+
+<h2>Sintesi</h2>
+<div class="esito {{ esito }}"><b>Esito</b> {{ sintesi }}</div>
+<div class="kpi">
+  {% for label, value in kpi %}<div><span>{{ label }}</span><b>{{ value }}</b></div>{% endfor %}
+</div>
+<p>La domanda a cui risponde questa analisi è semplice: <b>il gestore ha talento, o ha solo preso rischi che si
+possono comprare a basso costo con un ETF?</b> Battere il mercato non basta. Un fondo che investe in titoli
+<i>value</i> o in piccole società rende in media più dell'indice perché quei titoli sono più rischiosi, non per merito
+del gestore. Il <b>modello fattoriale</b> separa queste esposizioni dall'<b>alfa</b>, cioè dal rendimento che resta
+dopo averne tenuto conto.</p>
+
+{% if metriche %}
+<h2>Rendimento rispetto al benchmark</h2>
+<div class="grafico">{{ grafici.crescita | safe }}</div>
+<div class="due">
+<div>
+<table>
+  <tr><th>Indicatore</th><th>Fondo</th><th>Benchmark</th></tr>
+  {% for m in metriche %}<tr><td>{{ m.nome }}</td><td>{{ m.fondo }}</td><td>{{ m.bench }}</td></tr>{% endfor %}
+</table>
+</div>
+<div>
+<p>Il <b>tracking error</b> misura quanto il fondo si discosta dal benchmark; l'<b>information ratio</b> è il
+rendimento in più per unità di scostamento. Un valore sopra 0,5 mantenuto per molti anni è raro.</p>
+<p><b>Up</b> e <b>down capture</b> dicono quanta parte dei rialzi e dei ribassi del benchmark il fondo ha
+catturato: un gestore che protegge davvero il capitale ha un down capture più basso dell'up capture.</p>
+</div>
+</div>
+{% endif %}
+
+<h2>Il gestore crea valore? Alfa con modelli diversi</h2>
+<p>I rendimenti mensili del fondo, in eccesso rispetto al tasso privo di rischio, sono stati spiegati con modelli
+via via più completi. Se l'alfa si riduce aggiungendo fattori, quella parte di rendimento era una ricompensa per
+il rischio di stile e non un merito del gestore.</p>
+<div class="grafico">{{ grafici.modelli | safe }}</div>
+<div class="scroll">
+<table>
+  <tr><th>Modello</th><th>Alfa annuo</th><th>t</th><th>p-value</th><th>Beta mercato</th><th>R² corretto</th><th>Rischio specifico</th><th>BIC</th></tr>
+  {% for m in modelli %}<tr{% if m.scelto %} class="forte"{% endif %}><td>{{ m.nome }}</td><td>{{ m.alfa }}</td><td>{{ m.t }}</td><td>{{ m.p }}</td><td>{{ m.beta }}</td><td>{{ m.r2 }}</td><td>{{ m.spec }}</td><td>{{ m.bic }}</td></tr>{% endfor %}
+</table>
+</div>
+<p class="sub">Errori standard di Newey-West, robusti a eteroschedasticità e autocorrelazione. Un |t| sotto 2
+(p-value sopra 0,05) indica un alfa non distinguibile da zero. Il modello con il BIC più basso, che bilancia
+capacità esplicativa e numero di fattori, è <b>{{ migliore_bic }}</b>; nel resto dell'analisi si usa
+<b>{{ modello }}</b>.</p>
+
+<h2>Da dove vengono rendimento e rischio</h2>
+<div class="due">
+<div class="grafico">{{ grafici.esposizioni | safe }}</div>
+<div>
+<p>Il <b>beta</b> di ogni fattore indica quanto il fondo ne segue l'andamento: un beta value di 0,5 significa che
+metà del premio dei titoli value finisce nel rendimento del fondo. Le barre sottili sono l'intervallo di
+confidenza al 95%.</p>
+<p>Esposizioni significative oltre al mercato: <b>{{ rilevanti }}</b>.</p>
+</div>
+</div>
+<div class="scroll">
+<table>
+  <tr><th>Fattore</th><th>Beta</th><th>t</th><th>p-value</th><th>Contributo al rendimento annuo</th><th>Quota del rischio</th></tr>
+  {% for e in esposizioni %}<tr{% if e.sig %} class="forte"{% endif %}><td>{{ e.nome }} <span class="sub">({{ e.codice }})</span></td><td>{{ e.beta }}</td><td>{{ e.t }}</td><td>{{ e.p }}</td><td>{{ e.contributo }}</td><td>{{ e.rischio }}</td></tr>{% endfor %}
+  <tr><td>Alfa</td><td colspan="3">t = {{ alfa_t }}, p-value {{ alfa_p }}</td><td>{{ alfa }}</td><td>–</td></tr>
+  <tr><td>Rischio specifico</td><td colspan="3">appraisal ratio {{ appraisal }}</td><td>–</td><td>{{ specifico }}</td></tr>
+</table>
+</div>
+<div class="grafico">{{ grafici.rendimento | safe }}</div>
+<p>Il rendimento medio annuo del fondo ({{ rendimento_medio }}) è la somma esatta del tasso privo di rischio
+({{ rf_medio }}), dei premi dei fattori moltiplicati per le esposizioni e dell'alfa.</p>
+<div class="grafico">{{ grafici.rischio | safe }}</div>
+<p>Il {{ sistematico }} delle oscillazioni del fondo dipende dai fattori e solo il {{ specifico }} dalle scelte
+specifiche del gestore. Pagare commissioni di gestione attiva ha senso solo se questa parte specifica è ampia
+<i>e</i> ha prodotto un alfa positivo.</p>
+
+<h2>Talento o fortuna?</h2>
+<p>Anche un gestore senza alcuna capacità, su molti anni, può ottenere un alfa positivo per caso. Per
+misurarlo sono stati simulati {{ boot_n }} gestori con le stesse esposizioni ai fattori del fondo e alfa zero,
+ricampionando a blocchi di sei mesi la storia di fattori e residui (metodo di Kosowski, Timmermann, Wermers e
+White). Un gestore senza capacità supera per caso una statistica t di {{ boot_soglia }} solo in 5 casi su 100;
+il fondo ha t = {{ boot_t }}, con una probabilità di {{ boot_p }} che un risultato almeno così estremo sia
+dovuto alla fortuna.</p>
+<div class="grafico">{{ grafici.bootstrap | safe }}</div>
+
+{% if mobili %}
+<h2>Lo stile cambia nel tempo?</h2>
+<p>Le stesse regressioni su finestre mobili di tre anni mostrano se il gestore mantiene uno stile coerente o
+cambia strategia, e se l'alfa è stabile o concentrato in pochi periodi.</p>
+<div class="grafico">{{ grafici.mobili | safe }}</div>
+{% endif %}
+
+{% if stile %}
+<h2>Analisi di stile</h2>
+<p>La <b>style analysis</b> di Sharpe cerca, con i soli rendimenti mensili, la combinazione di indici (con pesi
+positivi che sommano al 100%) che replica meglio il fondo. È il portafoglio passivo che un investitore
+potrebbe costruire da sé con gli ETF.</p>
+<div class="due">
+<div class="grafico">{{ grafici.stile | safe }}</div>
+<div>
+<p>Lo stile spiega il <b>{{ stile.r2 }}</b> della variabilità del fondo. La componente principale è
+<b>{{ stile.principale }}</b> ({{ stile.quota }}).</p>
+<p>Rispetto al portafoglio di stile, al netto dei costi, il fondo ha reso <b>{{ stile.selezione }}</b> l'anno
+con uno scostamento (tracking error) del {{ stile.te }}. È il valore aggiunto dalla scelta dei titoli rispetto
+a una replica passiva dello stile.</p>
+</div>
+</div>
+{% if stile.mobile %}<div class="grafico">{{ grafici.stile_mobile | safe }}</div>{% endif %}
+{% endif %}
+
+{% if brinson %}
+<h2>Attribuzione di performance per settore</h2>
+<p>L'attribuzione di <b>Brinson</b> scompone il rendimento in più rispetto al benchmark negli ultimi
+{{ brinson.mesi }} mesi, al lordo dei costi, in tre effetti:</p>
+<ul>
+  <li><b>Allocazione</b>: aver sovrappesato i settori andati meglio dell'indice e sottopesato quelli andati peggio.</li>
+  <li><b>Selezione</b>: aver scelto, dentro ogni settore, titoli che hanno reso più del settore nell'indice.</li>
+  <li><b>Interazione</b>: l'effetto congiunto, ad esempio una buona selezione in un settore sovrappesato.</li>
+</ul>
+<div class="kpi">
+  <div><span>Fondo (lordo)</span><b>{{ brinson.fondo }}</b></div>
+  <div><span>Benchmark</span><b>{{ brinson.bench }}</b></div>
+  <div><span>Allocazione</span><b>{{ brinson.all }}</b></div>
+  <div><span>Selezione</span><b>{{ brinson.sel }}</b></div>
+  <div><span>Interazione</span><b>{{ brinson.int }}</b></div>
+  <div><span>Active share settoriale</span><b>{{ brinson.active_share }}</b></div>
+</div>
+<p>Il rendimento attivo lordo del periodo è <b>{{ brinson.attivo }}</b>, guidato soprattutto dall'effetto di
+{{ brinson.principale }}{% if brinson.costi %}; i costi del fondo ne hanno sottratto circa {{ brinson.costi }}{% endif %}.
+Il settore che ha contribuito di più è <b>{{ brinson.migliore }}</b>, quello che ha pesato di più in negativo
+<b>{{ brinson.peggiore }}</b>.{% if brinson.selezione_positiva and rilevanti != "nessuno" %} Attenzione però:
+una selezione positiva non è automaticamente merito del gestore. Se dentro ogni settore il fondo sceglie
+sistematicamente titoli con le stesse caratteristiche ({{ rilevanti }}), l'attribuzione di Brinson la registra come
+selezione, mentre il modello fattoriale la riconosce come esposizione a un fattore, replicabile a basso costo.{% endif %}</p>
+<div class="grafico">{{ grafici.brinson | safe }}</div>
+<div class="scroll">
+<table>
+  <tr><th>Settore</th><th>Peso fondo</th><th>Peso benchmark</th><th>Rend. fondo</th><th>Rend. benchmark</th><th>Allocazione</th><th>Selezione</th><th>Interazione</th><th>Totale</th></tr>
+  {% for s in brinson.settori %}<tr><td>{{ s.nome }}</td><td>{{ s.pf }}</td><td>{{ s.pb }}</td><td>{{ s.rf }}</td><td>{{ s.rb }}</td><td>{{ s.all }}</td><td>{{ s.sel }}</td><td>{{ s.int }}</td><td class="{{ 'neg' if s.neg else 'pos' }}">{{ s.tot }}</td></tr>{% endfor %}
+  <tr class="forte"><td>Totale</td><td>100%</td><td>100%</td><td>{{ brinson.fondo }}</td><td>{{ brinson.bench }}</td><td>{{ brinson.all }}</td><td>{{ brinson.sel }}</td><td>{{ brinson.int }}</td><td>{{ brinson.attivo }}</td></tr>
+</table>
+</div>
+<p class="sub">Pesi medi del periodo e rendimenti cumulati. Allocazione secondo Brinson-Fachler; gli effetti dei
+singoli mesi sono collegati con il metodo logaritmico di Cariño, per cui la loro somma coincide esattamente con il
+rendimento attivo cumulato.</p>
+<div class="grafico">{{ grafici.brinson_tempo | safe }}</div>
+{% endif %}
+
+{% if confronto %}
+<h2>Confronto con altri fondi della categoria</h2>
+<p>Lo stesso esame applicato ad altri fondi con lo stesso benchmark. L'alfa CAPM considera solo il mercato;
+l'alfa multifattore tiene conto anche degli stili. In grassetto il fondo analizzato.</p>
+<div class="grafico">{{ grafici.confronto | safe }}</div>
+<div class="scroll">
+<table>
+  <tr><th>Fondo</th><th>Rend. annuo</th><th>Volatilità</th><th>Tracking error</th><th>Information ratio</th><th>Alfa CAPM</th><th>Alfa multifattore</th><th>t</th><th>R²</th></tr>
+  {% for c in confronto %}<tr{% if c.questo %} class="forte"{% endif %}><td>{{ c.nome }}</td><td>{{ c.rend }}</td><td>{{ c.vol }}</td><td>{{ c.te }}</td><td>{{ c.ir }}</td><td>{{ c.capm }}</td><td class="{{ 'pos' if c.sig and not c.multi.startswith('−') else 'neg' if c.sig else '' }}">{{ c.multi }}</td><td>{{ c.t }}</td><td>{{ c.r2 }}</td></tr>{% endfor %}
+</table>
+</div>
+<p class="sub">In verde e in rosso gli alfa multifattore statisticamente significativi (|t| ≥ 2).</p>
+{% endif %}
+
+<h2>Note metodologiche</h2>
+<div class="note">
+{% if data_note %}<p><b>{{ data_note }}</b></p>{% endif %}
+<p>Rendimenti mensili netti del fondo{% if ter %} (costo annuo {{ ter }}){% endif %}. Fattori: mercato (MKT),
+small cap (SMB), value (HML), qualità/redditività (RMW), investimenti prudenti (CMA) secondo Fama e French (2015)
+e momentum (MOM) secondo Carhart (1997). Regressioni OLS sui rendimenti in eccesso con errori standard di
+Newey-West; alfa annualizzato moltiplicando per 12 quello mensile. La scomposizione del rischio usa i contributi di
+Eulero alla varianza. Il bootstrap dell'alfa ricampiona a blocchi circolari di sei mesi le righe di fattori e
+residui sotto l'ipotesi di alfa nullo. La style analysis minimizza la varianza della differenza tra fondo e
+portafoglio di indici con pesi non negativi che sommano a uno. L'attribuzione di Brinson usa pesi di inizio mese e
+rendimenti lordi per settore.</p>
+<p>Questo documento ha scopo illustrativo e non costituisce consulenza finanziaria o raccomandazione di
+investimento. I risultati passati e simulati non sono indicativi di quelli futuri.</p>
+</div>
+</body>
+</html>
